@@ -20,10 +20,21 @@ PHRASES = {
 async def main():
     OUT.mkdir(parents=True, exist_ok=True)
     for name, (text, rate, pitch) in PHRASES.items():
-        if (OUT / f"{name}.mp3").exists():  # удалить файл, чтобы перегенерировать
+        target = OUT / f"{name}.mp3"
+        if target.exists() and target.stat().st_size > 0:  # удалить файл, чтобы перегенерировать
             continue
-        tts = edge_tts.Communicate(text, VOICE, rate=rate, pitch=pitch, volume="+0%")
-        await tts.save(str(OUT / f"{name}.mp3"))
+        tmp = target.with_suffix(".tmp")
+        for attempt in range(5):  # сервис иногда отвечает 403 — повторяем
+            try:
+                tts = edge_tts.Communicate(text, VOICE, rate=rate, pitch=pitch, volume="+0%")
+                await tts.save(str(tmp))
+                break
+            except Exception as e:
+                print("retry", name, e.__class__.__name__)
+                await asyncio.sleep(3)
+        else:
+            raise SystemExit(f"не удалось сгенерировать {name}")
+        tmp.replace(target)
         print("saved", name)
     # voices.js: те же файлы в base64, чтобы index.html работал даже открытым как файл (file://)
     lines = ["// Сгенерировано tools/make_voices.py — не править руками", "window.VOICES = {"]
