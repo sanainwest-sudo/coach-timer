@@ -43,9 +43,9 @@
     min-height: 64px; border: 0; border-radius: 14px; font-size: 18px; font-weight: 700;
     background: var(--card); color: var(--text); border: 1px solid var(--line); cursor: pointer;
   }
-  .presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 4px 0 8px; }
-  button.preset { min-height: 64px; font-size: 17px; padding: 8px; }
-  button.preset small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  .presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 4px 0 8px; }
+  button.preset { min-height: 64px; font-size: 16px; padding: 6px 4px; }
+  button.preset small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 2px; }
   button.preset.active { border: 2px solid var(--work); }
   #startBtn { background: var(--accent); color: #0b0d10; font-size: 22px; border: 0; }
 
@@ -118,6 +118,7 @@
   <div class="row"><label for="work">🔥 Жаттығу (дыбысы қатты)</label><select id="work"></select></div>
   <div class="row"><label for="rest">✋ Демалыс (дыбысы ақырын)</label><select id="rest"></select></div>
   <div class="row"><label for="rounds">🔁 Раунд саны</label><select id="rounds"></select></div>
+  <div class="row"><label for="signal">🔔 Сигнал</label><select id="signal"><option value="voice">🗣 Дауыс</option><option value="gong">🔔 Гонг</option></select></div>
   <div class="row"><label for="restVol">🔉 Демалыстағы дыбыс <b id="restVolTxt"></b></label><input type="range" id="restVol" min="5" max="60" step="5"></div>
   <div class="row"><label for="wake">💡 Экран өшпесін</label><input type="checkbox" id="wake"></div>
 </section>
@@ -146,7 +147,7 @@
 const $ = id => document.getElementById(id);
 
 // ---------- Баптаулар ----------
-const S = { work: 2, rest: 1, rounds: 0, restVol: 30, wake: true, shuffle: false };
+const S = { work: 2, rest: 1, rounds: 0, signal: 'voice', restVol: 30, wake: true, shuffle: false };
 try { Object.assign(S, JSON.parse(localStorage.getItem('coachTimer') || '{}')); } catch (e) {}
 function save() { try { localStorage.setItem('coachTimer', JSON.stringify(S)); } catch (e) {} }
 
@@ -162,26 +163,29 @@ for (const k of ['work', 'rest', 'rounds']) {
   $(k).value = S[k];
   $(k).onchange = () => { S[k] = Number($(k).value); save(); render(); markPreset(); };
 }
+$('signal').value = S.signal;
+$('signal').onchange = () => { S.signal = $('signal').value; save(); markPreset(); };
 
 // Дайын режимдер — бір басумен баптау
 const PRESETS = [
-  { icon: '⚡', name: 'Табата', work: 20 / 60, rest: 10 / 60, rounds: 8 },
-  { icon: '🔥', name: 'Интервал', work: 40 / 60, rest: 20 / 60, rounds: 10 },
+  { icon: '⚡', name: 'Табата', work: 20 / 60, rest: 10 / 60, rounds: 8, signal: 'voice' },
+  { icon: '🔥', name: 'Интервал', work: 40 / 60, rest: 20 / 60, rounds: 10, signal: 'voice' },
+  { icon: '🥊', name: 'Бокс', work: 3, rest: 1, rounds: 6, signal: 'gong' },
 ];
 $('presets').innerHTML = PRESETS.map((p, i) =>
   `<button class="big preset" data-p="${i}">${p.icon} ${p.name}<small>${minLabel(p.work)} / ${minLabel(p.rest)} × ${p.rounds}</small></button>`).join('');
 $('presets').onclick = e => {
   const b = e.target.closest('[data-p]');
   if (!b) return;
-  const { work, rest, rounds } = PRESETS[b.dataset.p];
-  Object.assign(S, { work, rest, rounds });
-  for (const k of ['work', 'rest', 'rounds']) $(k).value = S[k];
+  const { work, rest, rounds, signal } = PRESETS[b.dataset.p];
+  Object.assign(S, { work, rest, rounds, signal });
+  for (const k of ['work', 'rest', 'rounds', 'signal']) $(k).value = S[k];
   save(); render(); markPreset();
 };
 function markPreset() {
   document.querySelectorAll('#presets [data-p]').forEach(b => {
     const p = PRESETS[b.dataset.p];
-    b.classList.toggle('active', p.work === S.work && p.rest === S.rest && p.rounds === S.rounds);
+    b.classList.toggle('active', p.work === S.work && p.rest === S.rest && p.rounds === S.rounds && p.signal === S.signal);
   });
 }
 markPreset();
@@ -220,6 +224,55 @@ function say(name) {
   s.connect(ctx.destination);
   s.start();
 }
+
+// Бокс гонгы — синтезделеді (жүктеп алынған файл емес). Бірнеше обертон, баяу өшеді.
+function bell(strikes) {
+  if (!ctx) return;
+  const out = ctx.createGain();
+  out.gain.value = 0.45;
+  out.connect(ctx.destination);
+  const t0 = ctx.currentTime + 0.02;
+  for (let i = 0; i < strikes; i++) {
+    const t = t0 + i * 0.35;
+    for (const [ratio, amp, decay] of [[1, 1, 3.5], [2.0, 0.55, 2.2], [2.76, 0.45, 1.6], [5.4, 0.25, 0.8], [8.93, 0.15, 0.5]]) {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 660 * ratio;
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(amp, t + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + decay);
+      o.connect(g).connect(out);
+      o.start(t);
+      o.stop(t + decay + 0.05);
+    }
+  }
+}
+// Раунд бітуіне 10 секунд қалғанда — ағаш тарсылдатқыш (3 рет)
+function clap(times) {
+  if (!ctx) return;
+  const len = Math.floor(ctx.sampleRate * 0.04);
+  const noise = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = noise.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3);
+  const t0 = ctx.currentTime + 0.02;
+  for (let i = 0; i < times; i++) {
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noise;
+    f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 1.5;
+    g.gain.value = 1.6;
+    s.connect(f).connect(g).connect(ctx.destination);
+    s.start(t0 + i * 0.16);
+  }
+}
+// Оқиға → дыбыс: дауыс немесе гонг
+const CUES = {
+  voice: { start: () => say('letsgo'), workEnd: () => say('stop'), restWarn: () => say('ready'), restEnd: () => say('letsgo'), finish: () => say('stop') },
+  gong: { start: () => bell(1), workWarn: () => clap(3), workEnd: () => bell(3), restEnd: () => bell(1), finish: () => bell(3) },
+};
+function cue(ev) {
+  const f = (CUES[S.signal] || CUES.voice)[ev];
+  if (f) f();
+}
+
 function setMusicLevel(v, delay = 0, smooth = 0.3) {
   if (!musicGain) return;
   const t = ctx.currentTime + delay;
@@ -303,13 +356,13 @@ music.onerror = () => { if (tracks.length > 1) playTrack(nextIndex()); };
 
 // ---------- Таймер ----------
 // Фазаның аяқталу уақыты сақталады, сондықтан телефон баяуласа да уақыт дұрыс.
-const state = { phase: 'idle', end: 0, total: 1, left: 0, round: 1, paused: false, readySaid: false };
+const state = { phase: 'idle', end: 0, total: 1, left: 0, round: 1, paused: false, warned: false };
 
 function beginPhase(p) {
   state.phase = p;
   state.total = (p === 'work' ? S.work : S.rest) * 60000;
   state.end = Date.now() + state.total;
-  state.readySaid = false;
+  state.warned = false;
   document.body.classList.toggle('rest', p === 'rest');
 }
 
@@ -324,7 +377,7 @@ async function start() {
     if (cur < 0) playTrack(S.shuffle ? nextIndex() : 0);
     else if (music.src !== tracks[cur].url) playTrack(cur);
     else music.play();
-    say('letsgo');
+    cue('start');
   } else if (state.paused) {
     state.paused = false;
     state.end = Date.now() + state.left;
@@ -350,19 +403,20 @@ function reset() {
 
 function finishPhase() {
   if (state.phase === 'work') {
-    say('stop');
     if (S.rounds && state.round >= S.rounds) {
+      cue('finish');
       state.phase = 'done';
       setMusicLevel(0, 0.5, 1);            // музыка біртіндеп сөнеді
       setTimeout(() => { if (state.phase === 'done') { music.pause(); setMusicLevel(1, 0, 0.05); } }, 5000);
       updateWakeLock();
       return;
     }
+    cue('workEnd');
     setMusicLevel(S.restVol / 100, 0, 0.4);
     beginPhase('rest');
   } else if (state.phase === 'rest') {
-    say('letsgo');
-    setMusicLevel(1, 0.6, 0.3);            // "Let's go" естілген соң музыка қатаяды
+    cue('restEnd');
+    setMusicLevel(1, 0.6, 0.3);            // "Let's go" / гонг естілген соң музыка қатаяды
     state.round++;
     beginPhase('work');
   }
@@ -371,9 +425,9 @@ function finishPhase() {
 function tick() {
   if ((state.phase === 'work' || state.phase === 'rest') && !state.paused) {
     const rem = state.end - Date.now();
-    if (state.phase === 'rest' && !state.readySaid && rem <= 7500 && state.total > 9000) {
-      state.readySaid = true;
-      say('ready');
+    if (!state.warned) {
+      if (state.phase === 'rest' && rem <= 7500 && state.total > 9000) { state.warned = true; cue('restWarn'); }
+      if (state.phase === 'work' && rem <= 10000 && state.total > 15000) { state.warned = true; cue('workWarn'); }
     }
     if (rem <= 0) finishPhase();
   }

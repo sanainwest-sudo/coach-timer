@@ -12,4 +12,5 @@ tools/
 Звук: `<audio id=music>` → MediaElementSource → musicGain → destination.
 Команды: fetch → decodeAudioData → BufferSource → destination (поверх музыки).
 Плейлист: IndexedDB `coachTimer` → store `tracks` {id, name, blob}; при загрузке → object URL.
+Сигналы: cue(событие) → CUES.voice (голос из voices.js) или CUES.gong (bell()/clap(), синтез).
 Таймер: хранит время окончания фазы (`phaseEnd`), проверка каждые 250 мс + на событии `timeupdate` музыки.
