@@ -43,7 +43,10 @@
     min-height: 64px; border: 0; border-radius: 14px; font-size: 18px; font-weight: 700;
     background: var(--card); color: var(--text); border: 1px solid var(--line); cursor: pointer;
   }
-  button.preset { width: 100%; min-height: 52px; margin: 4px 0 8px; font-size: 16px; border-color: var(--rest); }
+  .presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin: 4px 0 8px; }
+  button.preset { min-height: 64px; font-size: 17px; padding: 8px; }
+  button.preset small { display: block; font-size: 13px; font-weight: 500; color: var(--muted); margin-top: 2px; }
+  button.preset.active { border: 2px solid var(--work); }
   #startBtn { background: var(--accent); color: #0b0d10; font-size: 22px; border: 0; }
 
   /* Настройки */
@@ -111,7 +114,7 @@
 
 <section class="card">
   <h2>Баптаулар</h2>
-  <button class="big preset" id="tabataBtn">⚡ Табата: 20 сек / 10 сек × 8</button>
+  <div class="presets" id="presets"></div>
   <div class="row"><label for="work">🔥 Жаттығу (музыка қатты)</label><select id="work"></select></div>
   <div class="row"><label for="rest">✋ Тоқта (музыка ақырын)</label><select id="rest"></select></div>
   <div class="row"><label for="rounds">🔁 Раунд саны</label><select id="rounds"></select></div>
@@ -147,7 +150,7 @@ const S = { work: 2, rest: 1, rounds: 0, restVol: 30, wake: true, shuffle: false
 try { Object.assign(S, JSON.parse(localStorage.getItem('coachTimer') || '{}')); } catch (e) {}
 function save() { try { localStorage.setItem('coachTimer', JSON.stringify(S)); } catch (e) {} }
 
-const minuteOpts = [10 / 60, 15 / 60, 20 / 60, 0.5, 45 / 60, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const minuteOpts = [10 / 60, 15 / 60, 20 / 60, 0.5, 40 / 60, 45 / 60, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 const minLabel = m => m < 1 ? `${Math.round(m * 60)} сек` : (m % 1 ? `${Math.floor(m)} мин 30 сек` : `${m} мин`);
 function fill(sel, opts, label) {
   sel.innerHTML = opts.map(v => `<option value="${v}">${label(v)}</option>`).join('');
@@ -157,13 +160,31 @@ fill($('rest'), minuteOpts, minLabel);
 fill($('rounds'), [0, ...Array.from({ length: 30 }, (_, i) => i + 1)], v => v ? String(v) : '∞ шексіз');
 for (const k of ['work', 'rest', 'rounds']) {
   $(k).value = S[k];
-  $(k).onchange = () => { S[k] = Number($(k).value); save(); render(); };
+  $(k).onchange = () => { S[k] = Number($(k).value); save(); render(); markPreset(); };
 }
-$('tabataBtn').onclick = () => {
-  Object.assign(S, { work: 20 / 60, rest: 10 / 60, rounds: 8 });
+
+// Дайын режимдер — бір басумен баптау
+const PRESETS = [
+  { icon: '⚡', name: 'Табата', work: 20 / 60, rest: 10 / 60, rounds: 8 },
+  { icon: '🔥', name: 'Интервалка', work: 40 / 60, rest: 20 / 60, rounds: 10 },
+];
+$('presets').innerHTML = PRESETS.map((p, i) =>
+  `<button class="big preset" data-p="${i}">${p.icon} ${p.name}<small>${minLabel(p.work)} / ${minLabel(p.rest)} × ${p.rounds}</small></button>`).join('');
+$('presets').onclick = e => {
+  const b = e.target.closest('[data-p]');
+  if (!b) return;
+  const { work, rest, rounds } = PRESETS[b.dataset.p];
+  Object.assign(S, { work, rest, rounds });
   for (const k of ['work', 'rest', 'rounds']) $(k).value = S[k];
-  save(); render();
+  save(); render(); markPreset();
 };
+function markPreset() {
+  document.querySelectorAll('#presets [data-p]').forEach(b => {
+    const p = PRESETS[b.dataset.p];
+    b.classList.toggle('active', p.work === S.work && p.rest === S.rest && p.rounds === S.rounds);
+  });
+}
+markPreset();
 $('restVol').value = S.restVol;
 $('restVolTxt').textContent = S.restVol + '%';
 $('restVol').oninput = () => {
