@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<title>Coach Timer</title>
+<style>
+  :root {
+    --bg: #0f1115; --card: #1a1d24; --line: #2a2f3a; --text: #f3f4f6; --muted: #9ca3af;
+    --work: #22c55e; --rest: #f97316; --accent: var(--work);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding: 12px 16px 32px; max-width: 640px; margin-inline: auto;
+  }
+  body.rest { --accent: var(--rest); }
+  header { display: flex; align-items: center; justify-content: space-between; }
+  h1 { font-size: 20px; margin: 4px 0; letter-spacing: .5px; }
+  .icon-btn {
+    width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line);
+    background: var(--card); color: var(--text); font: 700 18px Georgia, serif; cursor: pointer;
+  }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; margin-top: 12px; }
+
+  /* Таймер */
+  #timerCard { text-align: center; border-color: var(--accent); }
+  #phase { font-size: 22px; font-weight: 800; letter-spacing: 3px; color: var(--accent); }
+  #time {
+    font-size: min(34vw, 32vh, 200px); font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums; margin: 8px 0;
+  }
+  #round { color: var(--muted); font-size: 18px; }
+  .bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; margin-top: 12px; }
+  #progress { height: 100%; width: 0; background: var(--accent); transition: width .2s linear; }
+  #nowPlaying { color: var(--muted); font-size: 14px; margin-top: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Кнопки */
+  .controls { display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; margin-top: 12px; }
+  button.big {
+    min-height: 64px; border: 0; border-radius: 14px; font-size: 18px; font-weight: 700;
+    background: var(--card); color: var(--text); border: 1px solid var(--line); cursor: pointer;
+  }
+  #startBtn { background: var(--accent); color: #0b0d10; font-size: 22px; border: 0; }
+
+  /* Настройки */
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; }
+  .row + .row { border-top: 1px solid var(--line); }
+  label { font-size: 16px; }
+  select, input[type=range] { font-size: 18px; }
+  select { background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-width: 120px; }
+  input[type=range] { width: 140px; accent-color: var(--rest); }
+  input[type=checkbox] { width: 24px; height: 24px; accent-color: var(--work); }
+  h2 { font-size: 16px; margin: 0 0 6px; color: var(--muted); font-weight: 600; }
+
+  /* Плейлист */
+  .add-btn {
+    display: block; text-align: center; padding: 14px; border: 2px dashed var(--line);
+    border-radius: 12px; cursor: pointer; font-weight: 700; font-size: 16px;
+  }
+  #files { display: none; }
+  ol { padding-left: 0; list-style: none; margin: 10px 0 0; counter-reset: t; }
+  li { display: flex; align-items: center; gap: 8px; padding: 8px 4px; border-bottom: 1px solid var(--line); counter-increment: t; }
+  li::before { content: counter(t); color: var(--muted); width: 22px; text-align: right; }
+  li span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  li.current span { color: var(--work); font-weight: 700; }
+  li button { background: none; border: 0; color: var(--muted); font-size: 20px; cursor: pointer; padding: 4px 8px; }
+  .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+
+  /* Соңғы 5 секунд — экранның ортасында үлкен сан */
+  #final {
+    position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+    background: rgba(15, 17, 21, .88); z-index: 10; pointer-events: none;
+  }
+  #final.show { display: flex; }
+  #finalNum {
+    font-size: min(80vw, 75vh); font-weight: 900; line-height: 1; color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  #finalNum.pop { animation: pop .9s ease-out; }
+  @keyframes pop { from { transform: scale(1.25); opacity: .4; } to { transform: scale(1); opacity: 1; } }
+
+  dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 16px; max-width: 360px; width: calc(100% - 32px); }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+  dialog a { color: var(--work); font-size: 20px; font-weight: 700; text-decoration: none; }
+  dialog button { margin-top: 12px; width: 100%; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🏋️ Coach Timer</h1>
+  <button class="icon-btn" id="infoBtn" aria-label="Ақпарат">i</button>
+</header>
+
+<section class="card" id="timerCard">
+  <div id="phase">ДАЙЫН</div>
+  <div id="time">00:00</div>
+  <div id="round">Раунд —</div>
+  <div class="bar"><div id="progress"></div></div>
+  <div id="nowPlaying">🎵 Музыка таңдалмаған</div>
+</section>
+
+<div class="controls">
+  <button class="big" id="resetBtn" aria-label="Тоқтату">⏹</button>
+  <button class="big" id="startBtn">▶ СТАРТ</button>
+  <button class="big" id="nextBtn" aria-label="Келесі ән">⏭</button>
+</div>
+
+<section class="card">
+  <h2>Баптаулар</h2>
+  <div class="row"><label for="work">🔥 Жаттығу (музыка қатты)</label><select id="work"></select></div>
+  <div class="row"><label for="rest">✋ Тоқта (музыка ақырын)</label><select id="rest"></select></div>
+  <div class="row"><label for="rounds">🔁 Раунд саны</label><select id="rounds"></select></div>
+  <div class="row"><label for="restVol">🔉 Тоқтағандағы дыбыс <b id="restVolTxt"></b></label><input type="range" id="restVol" min="5" max="60" step="5"></div>
+  <div class="row"><label for="wake">💡 Экран өшпесін</label><input type="checkbox" id="wake"></div>
+</section>
+
+<section class="card">
+  <h2>Плейлист</h2>
+  <label class="add-btn" for="files">➕ Музыка қосу</label>
+  <input type="file" id="files" accept="audio/*" multiple>
+  <div class="row"><label for="shuffle">🔀 Аралас ойнату</label><input type="checkbox" id="shuffle"></div>
+  <ol id="list"></ol>
+  <p class="hint">Экран өшсе де музыка мен таймер жұмысын жалғастырады. Тек бетті жаппаңыз.</p>
+</section>
+
+<div id="final"><div id="finalNum">5</div></div>
+
+<dialog id="info">
+  <h2 style="color:var(--text);font-size:20px">Coach Timer</h2>
+  <p>Тренерге арналған музыкалық интервал таймері.</p>
+  <p>Авторы: <b>Роман Давлетбаев</b><br><a href="tel:+77012111996">+7 701 211 19 96</a></p>
+  <p class="hint">Нұсқа 1.0</p>
+  <button class="big" id="infoClose">Жабу</button>
+</dialog>
+
+<script src="voices.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+// ---------- Баптаулар ----------
+const S = { work: 2, rest: 1, rounds: 0, restVol: 30, wake: true, shuffle: false };
+try { Object.assign(S, JSON.parse(localStorage.getItem('coachTimer') || '{}')); } catch (e) {}
+function save() { try { localStorage.setItem('coachTimer', JSON.stringify(S)); } catch (e) {} }
+
+const minuteOpts = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const minLabel = m => m < 1 ? '30 сек' : (m % 1 ? `${Math.floor(m)} мин 30 сек` : `${m} мин`);
+function fill(sel, opts, label) {
+  sel.innerHTML = opts.map(v => `<option value="${v}">${label(v)}</option>`).join('');
+}
+fill($('work'), minuteOpts, minLabel);
+fill($('rest'), minuteOpts, minLabel);
+fill($('rounds'), [0, ...Array.from({ length: 30 }, (_, i) => i + 1)], v => v ? String(v) : '∞ шексіз');
+for (const k of ['work', 'rest', 'rounds']) {
+  $(k).value = S[k];
+  $(k).onchange = () => { S[k] = Number($(k).value); save(); render(); };
+}
+$('restVol').value = S.restVol;
+$('restVolTxt').textContent = S.restVol + '%';
+$('restVol').oninput = () => {
+  S.restVol = Number($('restVol').value); $('restVolTxt').textContent = S.restVol + '%'; save();
+  if (state.phase === 'rest') setMusicLevel(S.restVol / 100);
+};
+$('wake').checked = S.wake;
+$('wake').onchange = () => { S.wake = $('wake').checked; save(); updateWakeLock(); };
+$('shuffle').checked = S.shuffle;
+$('shuffle').onchange = () => { S.shuffle = $('shuffle').checked; save(); };
+
+// ---------- Дыбыс ----------
+// Музыка мен командалар бір AudioContext арқылы жүреді — экран өшкенде де тоқтамайды.
+const music = new Audio();
+music.preload = 'auto';
+let ctx, musicGain;
+const voices = {};
+
+async function initAudio() {
+  if (ctx) { if (ctx.state !== 'running') await ctx.resume(); return; }
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+  musicGain = ctx.createGain();
+  ctx.createMediaElementSource(music).connect(musicGain).connect(ctx.destination);
+  for (const [k, b64] of Object.entries(window.VOICES || {})) {
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    try { voices[k] = await ctx.decodeAudioData(bytes.buffer); } catch (e) { console.warn('voice', k, e); }
+  }
+}
+function say(name) {
+  if (!ctx || !voices[name]) return;
+  const s = ctx.createBufferSource();
+  s.buffer = voices[name];
+  s.connect(ctx.destination);
+  s.start();
+}
+function setMusicLevel(v, delay = 0, smooth = 0.3) {
+  if (!musicGain) return;
+  const t = ctx.currentTime + delay;
+  musicGain.gain.cancelScheduledValues(ctx.currentTime);
+  musicGain.gain.setTargetAtTime(v, t, smooth);
+}
+
+// ---------- Плейлист ----------
+let tracks = [], cur = -1;
+$('files').onchange = e => {
+  for (const f of e.target.files) tracks.push({ name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) });
+  e.target.value = '';
+  renderList();
+};
+function renderList() {
+  $('list').innerHTML = tracks.map((t, i) =>
+    `<li class="${i === cur ? 'current' : ''}"><span>${t.name.replace(/</g, '&lt;')}</span><button data-i="${i}" aria-label="Өшіру">✕</button></li>`).join('');
+  $('nowPlaying').textContent = cur >= 0 && tracks[cur] ? '🎵 ' + tracks[cur].name : (tracks.length ? `🎵 ${tracks.length} ән дайын` : '🎵 Музыка таңдалмаған');
+}
+$('list').onclick = e => {
+  const i = e.target.dataset.i;
+  if (i === undefined) return;
+  URL.revokeObjectURL(tracks[i].url);
+  tracks.splice(i, 1);
+  if (cur == i) cur = -1; else if (cur > i) cur--;
+  renderList();
+};
+function nextIndex() {
+  if (S.shuffle && tracks.length > 1) {
+    let i; do { i = Math.floor(Math.random() * tracks.length); } while (i === cur);
+    return i;
+  }
+  return (cur + 1) % tracks.length;
+}
+function playTrack(i) {
+  if (!tracks.length) return;
+  cur = i;
+  music.src = tracks[cur].url;
+  music.play().catch(console.warn);
+  renderList();
+  if ('mediaSession' in navigator) {
+    navigator.mediaSession.metadata = new MediaMetadata({ title: tracks[cur].name, artist: 'Coach Timer' });
+  }
+}
+music.onended = () => playTrack(nextIndex());
+music.onerror = () => { if (tracks.length > 1) playTrack(nextIndex()); };
+
+// ---------- Таймер ----------
+// Фазаның аяқталу уақыты сақталады, сондықтан телефон баяуласа да уақыт дұрыс.
+const state = { phase: 'idle', end: 0, total: 1, left: 0, round: 1, paused: false, readySaid: false };
+
+function beginPhase(p) {
+  state.phase = p;
+  state.total = (p === 'work' ? S.work : S.rest) * 60000;
+  state.end = Date.now() + state.total;
+  state.readySaid = false;
+  document.body.classList.toggle('rest', p === 'rest');
+}
+
+async function start() {
+  if (!tracks.length) { alert('Алдымен музыка қосыңыз: ➕ Музыка қосу'); return; }
+  await initAudio();
+  if (state.phase === 'idle' || state.phase === 'done') {
+    state.round = 1;
+    state.paused = false;
+    beginPhase('work');
+    setMusicLevel(1, 0, 0.05);
+    if (cur < 0) playTrack(S.shuffle ? nextIndex() : 0);
+    else if (music.src !== tracks[cur].url) playTrack(cur);
+    else music.play();
+    say('letsgo');
+  } else if (state.paused) {
+    state.paused = false;
+    state.end = Date.now() + state.left;
+    music.play();
+  } else {
+    state.paused = true;
+    state.left = state.end - Date.now();
+    music.pause();
+  }
+  updateWakeLock();
+  render();
+}
+
+function reset() {
+  state.phase = 'idle';
+  state.paused = false;
+  music.pause();
+  setMusicLevel(1, 0, 0.05);
+  document.body.classList.remove('rest');
+  updateWakeLock();
+  render();
+}
+
+function finishPhase() {
+  if (state.phase === 'work') {
+    say('stop');
+    if (S.rounds && state.round >= S.rounds) {
+      state.phase = 'done';
+      setMusicLevel(0, 0.5, 1);            // музыка біртіндеп сөнеді
+      setTimeout(() => { if (state.phase === 'done') { music.pause(); setMusicLevel(1, 0, 0.05); } }, 5000);
+      updateWakeLock();
+      return;
+    }
+    setMusicLevel(S.restVol / 100, 0, 0.4);
+    beginPhase('rest');
+  } else if (state.phase === 'rest') {
+    say('letsgo');
+    setMusicLevel(1, 0.6, 0.3);            // "Let's go" естілген соң музыка қатаяды
+    state.round++;
+    beginPhase('work');
+  }
+}
+
+function tick() {
+  if ((state.phase === 'work' || state.phase === 'rest') && !state.paused) {
+    const rem = state.end - Date.now();
+    if (state.phase === 'rest' && !state.readySaid && rem <= 7500 && state.total > 9000) {
+      state.readySaid = true;
+      say('ready');
+    }
+    if (rem <= 0) finishPhase();
+  }
+  render();
+}
+setInterval(tick, 200);
+music.addEventListener('timeupdate', tick);   // экран өшкенде қосымша "сағат"
+
+// ---------- Экран ----------
+const fmt = ms => {
+  const s = Math.max(0, Math.ceil(ms / 1000));
+  return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+};
+let lastFinal = null;
+function render() {
+  const p = state.phase;
+  const running = p === 'work' || p === 'rest';
+  const rem = running ? (state.paused ? state.left : state.end - Date.now()) : (S.work * 60000);
+  $('phase').textContent = state.paused ? 'ПАУЗА' : { idle: 'ДАЙЫН', work: 'ЖАТТЫҒУ 🔥', rest: 'ТОҚТА ✋', done: 'БІТТІ 💪' }[p];
+  $('time').textContent = p === 'done' ? '00:00' : fmt(rem);
+  $('round').textContent = p === 'idle' ? (S.rounds ? `${S.rounds} раунд` : 'Раунд саны шексіз')
+    : `Раунд ${state.round}${S.rounds ? ' / ' + S.rounds : ''}`;
+  $('progress').style.width = running ? (100 * (1 - rem / state.total)).toFixed(1) + '%' : (p === 'done' ? '100%' : '0');
+  $('startBtn').textContent = running && !state.paused ? '⏸ ПАУЗА' : (state.paused ? '▶ ЖАЛҒАСТЫРУ' : '▶ СТАРТ');
+
+  // Соңғы 5 секунд — үлкен сан
+  const sec = Math.ceil(rem / 1000);
+  const showFinal = running && !state.paused && rem > 0 && sec <= 5;
+  $('final').classList.toggle('show', showFinal);
+  if (showFinal && sec !== lastFinal) {
+    const n = $('finalNum');
+    n.textContent = sec;
+    n.classList.remove('pop'); void n.offsetWidth; n.classList.add('pop');
+  }
+  lastFinal = showFinal ? sec : null;
+}
+
+// ---------- Экран өшпесін (Wake Lock) ----------
+let wakeLock = null;
+async function updateWakeLock() {
+  const want = S.wake && (state.phase === 'work' || state.phase === 'rest') && !state.paused;
+  try {
+    if (want && !wakeLock && 'wakeLock' in navigator) {
+      wakeLock = await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } else if (!want && wakeLock) {
+      await wakeLock.release();
+      wakeLock = null;
+    }
+  } catch (e) { console.warn('wakeLock', e); }
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') { updateWakeLock(); if (ctx && ctx.state !== 'running') ctx.resume(); }
+});
+
+// ---------- Құлыпталған экрандағы басқару ----------
+if ('mediaSession' in navigator) {
+  navigator.mediaSession.setActionHandler('play', () => { if (state.paused || state.phase === 'idle') start(); });
+  navigator.mediaSession.setActionHandler('pause', () => { if (!state.paused && state.phase !== 'idle') start(); });
+  navigator.mediaSession.setActionHandler('nexttrack', () => playTrack(nextIndex()));
+}
+
+// ---------- Батырмалар ----------
+$('startBtn').onclick = start;
+$('resetBtn').onclick = reset;
+$('nextBtn').onclick = () => { if (tracks.length) { if (state.phase === 'idle') { cur = nextIndex(); renderList(); } else playTrack(nextIndex()); } };
+$('infoBtn').onclick = () => $('info').showModal();
+$('infoClose').onclick = () => $('info').close();
+
+renderList();
+render();
+</script>
+</body>
+</html>

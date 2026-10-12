@@ -3,7 +3,8 @@
 ```
 app/
   index.html     — весь интерфейс и логика
-  audio/         — stop.mp3, ready.mp3, letsgo.mp3
+  audio/         — stop.mp3, ready.mp3, letsgo.mp3 (исходники голосов)
+  voices.js      — те же голоса в base64 (их и использует index.html, работает даже как файл)
 tools/
   make_voices.py — генерация голосовых файлов
 ```
