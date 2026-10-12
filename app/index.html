@@ -123,7 +123,7 @@
   <input type="file" id="files" accept="audio/*" multiple>
   <div class="row"><label for="shuffle">🔀 Аралас ойнату</label><input type="checkbox" id="shuffle"></div>
   <ol id="list"></ol>
-  <p class="hint">Экран өшсе де музыка мен таймер жұмысын жалғастырады. Тек бетті жаппаңыз.</p>
+  <p class="hint">Әндер телефонда сақталады. Экран өшсе де музыка мен таймер жұмысын жалғастырады. Тек бетті жаппаңыз.</p>
 </section>
 
 <div id="final"><div id="finalNum">5</div></div>
@@ -201,9 +201,41 @@ function setMusicLevel(v, delay = 0, smooth = 0.3) {
 
 // ---------- Плейлист ----------
 let tracks = [], cur = -1;
-$('files').onchange = e => {
-  for (const f of e.target.files) tracks.push({ name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) });
+
+// Әндер телефонның өзінде (IndexedDB) сақталады — келесі жолы қайта таңдаудың керегі жоқ.
+const dbReady = new Promise((resolve, reject) => {
+  const req = indexedDB.open('coachTimer', 1);
+  req.onupgradeneeded = () => req.result.createObjectStore('tracks', { keyPath: 'id', autoIncrement: true });
+  req.onsuccess = () => resolve(req.result);
+  req.onerror = () => reject(req.error);
+});
+async function db(mode, fn) {
+  const d = await dbReady;
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction('tracks', mode);
+    const req = fn(tx.objectStore('tracks'));
+    tx.oncomplete = () => resolve(req.result);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function loadTracks() {
+  try {
+    const saved = await db('readonly', s => s.getAll());
+    tracks = saved.map(t => ({ id: t.id, name: t.name, url: URL.createObjectURL(t.blob) }));
+  } catch (e) { console.warn('db load', e); }
+  renderList();
+}
+
+$('files').onchange = async e => {
+  const files = [...e.target.files];
   e.target.value = '';
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist();  // телефон өзі өшіріп тастамасын
+  for (const f of files) {
+    const t = { name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) };
+    try { t.id = await db('readwrite', s => s.add({ name: t.name, blob: f })); }
+    catch (err) { console.warn('db save', err); alert('Ән сақталмады (жад толы болуы мүмкін): ' + t.name); }
+    tracks.push(t);
+  }
   renderList();
 };
 function renderList() {
@@ -214,7 +246,9 @@ function renderList() {
 $('list').onclick = e => {
   const i = e.target.dataset.i;
   if (i === undefined) return;
-  URL.revokeObjectURL(tracks[i].url);
+  const t = tracks[i];
+  if (t.id !== undefined) db('readwrite', s => s.delete(t.id)).catch(console.warn);
+  URL.revokeObjectURL(t.url);
   tracks.splice(i, 1);
   if (cur == i) cur = -1; else if (cur > i) cur--;
   renderList();
@@ -381,7 +415,7 @@ $('nextBtn').onclick = () => { if (tracks.length) { if (state.phase === 'idle') 
 $('infoBtn').onclick = () => $('info').showModal();
 $('infoClose').onclick = () => $('info').close();
 
-renderList();
+loadTracks();
 render();
 </script>
 </body>
