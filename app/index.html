@@ -115,10 +115,10 @@
 <section class="card">
   <h2>Баптаулар</h2>
   <div class="presets" id="presets"></div>
-  <div class="row"><label for="work">🔥 Жаттығу (музыка қатты)</label><select id="work"></select></div>
-  <div class="row"><label for="rest">✋ Тоқта (музыка ақырын)</label><select id="rest"></select></div>
+  <div class="row"><label for="work">🔥 Жаттығу (дыбысы қатты)</label><select id="work"></select></div>
+  <div class="row"><label for="rest">✋ Демалыс (дыбысы ақырын)</label><select id="rest"></select></div>
   <div class="row"><label for="rounds">🔁 Раунд саны</label><select id="rounds"></select></div>
-  <div class="row"><label for="restVol">🔉 Тоқтағандағы дыбыс <b id="restVolTxt"></b></label><input type="range" id="restVol" min="5" max="60" step="5"></div>
+  <div class="row"><label for="restVol">🔉 Демалыстағы дыбыс <b id="restVolTxt"></b></label><input type="range" id="restVol" min="5" max="60" step="5"></div>
   <div class="row"><label for="wake">💡 Экран өшпесін</label><input type="checkbox" id="wake"></div>
 </section>
 
@@ -166,7 +166,7 @@ for (const k of ['work', 'rest', 'rounds']) {
 // Дайын режимдер — бір басумен баптау
 const PRESETS = [
   { icon: '⚡', name: 'Табата', work: 20 / 60, rest: 10 / 60, rounds: 8 },
-  { icon: '🔥', name: 'Интервалка', work: 40 / 60, rest: 20 / 60, rounds: 10 },
+  { icon: '🔥', name: 'Интервал', work: 40 / 60, rest: 20 / 60, rounds: 10 },
 ];
 $('presets').innerHTML = PRESETS.map((p, i) =>
   `<button class="big preset" data-p="${i}">${p.icon} ${p.name}<small>${minLabel(p.work)} / ${minLabel(p.rest)} × ${p.rounds}</small></button>`).join('');
@@ -392,12 +392,12 @@ function render() {
   const p = state.phase;
   const running = p === 'work' || p === 'rest';
   const rem = running ? (state.paused ? state.left : state.end - Date.now()) : (S.work * 60000);
-  $('phase').textContent = state.paused ? 'ПАУЗА' : { idle: 'ДАЙЫН', work: 'ЖАТТЫҒУ 🔥', rest: 'ТОҚТА ✋', done: 'БІТТІ 💪' }[p];
+  $('phase').textContent = state.paused ? 'ПАУЗА' : { idle: 'ДАЙЫН', work: 'ЖАТТЫҒУ 🔥', rest: 'ДЕМАЛЫС ✋', done: 'БІТТІ 💪' }[p];
   $('time').textContent = p === 'done' ? '00:00' : fmt(rem);
   $('round').textContent = p === 'idle' ? (S.rounds ? `${S.rounds} раунд` : 'Раунд саны шексіз')
     : `Раунд ${state.round}${S.rounds ? ' / ' + S.rounds : ''}`;
   $('progress').style.width = running ? (100 * (1 - rem / state.total)).toFixed(1) + '%' : (p === 'done' ? '100%' : '0');
-  $('startBtn').textContent = running && !state.paused ? '⏸ ПАУЗА' : (state.paused ? '▶ ЖАЛҒАСТЫРУ' : '▶ СТАРТ');
+  $('startBtn').textContent = running && !state.paused ? '⏸ ПАУЗА' : (state.paused ? '▶ ЖАЛҒАСТЫР' : '▶ СТАРТ');
 
   // Соңғы 5 секунд — үлкен сан
   const sec = Math.ceil(rem / 1000);
