@@ -43,6 +43,7 @@
     min-height: 64px; border: 0; border-radius: 14px; font-size: 18px; font-weight: 700;
     background: var(--card); color: var(--text); border: 1px solid var(--line); cursor: pointer;
   }
+  button.preset { width: 100%; min-height: 52px; margin: 4px 0 8px; font-size: 16px; border-color: var(--rest); }
   #startBtn { background: var(--accent); color: #0b0d10; font-size: 22px; border: 0; }
 
   /* Настройки */
@@ -110,6 +111,7 @@
 
 <section class="card">
   <h2>Баптаулар</h2>
+  <button class="big preset" id="tabataBtn">⚡ Табата: 20 сек / 10 сек × 8</button>
   <div class="row"><label for="work">🔥 Жаттығу (музыка қатты)</label><select id="work"></select></div>
   <div class="row"><label for="rest">✋ Тоқта (музыка ақырын)</label><select id="rest"></select></div>
   <div class="row"><label for="rounds">🔁 Раунд саны</label><select id="rounds"></select></div>
@@ -145,8 +147,8 @@ const S = { work: 2, rest: 1, rounds: 0, restVol: 30, wake: true, shuffle: false
 try { Object.assign(S, JSON.parse(localStorage.getItem('coachTimer') || '{}')); } catch (e) {}
 function save() { try { localStorage.setItem('coachTimer', JSON.stringify(S)); } catch (e) {} }
 
-const minuteOpts = [0.5, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-const minLabel = m => m < 1 ? '30 сек' : (m % 1 ? `${Math.floor(m)} мин 30 сек` : `${m} мин`);
+const minuteOpts = [10 / 60, 15 / 60, 20 / 60, 0.5, 45 / 60, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+const minLabel = m => m < 1 ? `${Math.round(m * 60)} сек` : (m % 1 ? `${Math.floor(m)} мин 30 сек` : `${m} мин`);
 function fill(sel, opts, label) {
   sel.innerHTML = opts.map(v => `<option value="${v}">${label(v)}</option>`).join('');
 }
@@ -157,6 +159,11 @@ for (const k of ['work', 'rest', 'rounds']) {
   $(k).value = S[k];
   $(k).onchange = () => { S[k] = Number($(k).value); save(); render(); };
 }
+$('tabataBtn').onclick = () => {
+  Object.assign(S, { work: 20 / 60, rest: 10 / 60, rounds: 8 });
+  for (const k of ['work', 'rest', 'rounds']) $(k).value = S[k];
+  save(); render();
+};
 $('restVol').value = S.restVol;
 $('restVolTxt').textContent = S.restVol + '%';
 $('restVol').oninput = () => {
