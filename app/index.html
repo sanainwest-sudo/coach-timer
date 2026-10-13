@@ -165,7 +165,7 @@ const L = {
     noMusic: '🎵 Музыка таңдалмаған', nTracks: n => `🎵 ${n} ән дайын`,
     needMusic: 'Алдымен музыка қосыңыз: ➕ Музыка қосу', saveFail: 'Ән сақталмады (жад толы болуы мүмкін): ',
     infoDesc: 'Тренерге арналған музыкалық интервал таймері.', author: 'Авторы:', authorName: 'Роман Давлетбаев',
-    version: 'Нұсқа 1.3', close: 'Жабу',
+    version: 'Нұсқа 1.4', close: 'Жабу',
     aInfo: 'Ақпарат', aReset: 'Тоқтату', aNext: 'Келесі ән', aDel: 'Өшіру',
     sec: 'сек', min: 'мин', inf: '∞ шексіз', langBtn: 'EN',
   },
@@ -181,7 +181,7 @@ const L = {
     noMusic: '🎵 No music selected', nTracks: n => `🎵 ${n} tracks ready`,
     needMusic: 'Add music first: ➕ Add music', saveFail: 'Song was not saved (storage may be full): ',
     infoDesc: 'Music interval timer for coaches.', author: 'Author:', authorName: 'Roman Davletbayev',
-    version: 'Version 1.3', close: 'Close',
+    version: 'Version 1.4', close: 'Close',
     aInfo: 'Info', aReset: 'Stop', aNext: 'Next track', aDel: 'Remove',
     sec: 'sec', min: 'min', inf: '∞ unlimited', langBtn: 'ҚАЗ',
   },
@@ -390,11 +390,11 @@ function nextIndex() {
   }
   return (cur + 1) % tracks.length;
 }
-function playTrack(i) {
+function playTrack(i, autoplay = true) {
   if (!tracks.length) return;
   cur = i;
   music.src = tracks[cur].url;
-  music.play().catch(console.warn);
+  if (autoplay) music.play().catch(console.warn);
   renderList();
   if ('mediaSession' in navigator) {
     navigator.mediaSession.metadata = new MediaMetadata({ title: tracks[cur].name, artist: 'Coach Timer' });
@@ -538,7 +538,7 @@ if ('mediaSession' in navigator) {
   // Android өзі "pause" жібереді (хабарлама, Bluetooth үзілуі т.б.) — таймерді тоқтатпаймыз, музыканы қайта қосамыз.
   // Паузаны тек бағдарламаның өз батырмасымен қоюға болады.
   navigator.mediaSession.setActionHandler('pause', () => keepMusicAlive());
-  navigator.mediaSession.setActionHandler('nexttrack', () => playTrack(nextIndex()));
+  navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
 }
 
 // Жаттығу жүріп жатқанда музыка сырттан тоқтатылса (мысалы Strava хабарламасы) — 5 секундтан кейін қайта қосылады,
@@ -562,7 +562,14 @@ music.addEventListener('pause', keepMusicAlive);
 // ---------- Батырмалар ----------
 $('startBtn').onclick = start;
 $('resetBtn').onclick = reset;
-$('nextBtn').onclick = () => { if (tracks.length) { if (state.phase === 'idle') { cur = nextIndex(); renderList(); } else playTrack(nextIndex()); } };
+// Келесі ән: жаттығу жүріп тұрса — бірден ойнайды; пауза/дайын/бітті кезде тек ауысады, ойнамайды.
+function nextTrack() {
+  if (!tracks.length) return;
+  if (state.phase === 'idle') { cur = nextIndex(); renderList(); return; }
+  const running = (state.phase === 'work' || state.phase === 'rest') && !state.paused;
+  playTrack(nextIndex(), running);
+}
+$('nextBtn').onclick = nextTrack;
 $('infoBtn').onclick = () => $('info').showModal();
 $('infoClose').onclick = () => $('info').close();
 
