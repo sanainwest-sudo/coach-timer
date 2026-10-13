@@ -165,7 +165,7 @@ const L = {
     noMusic: '🎵 Музыка таңдалмаған', nTracks: n => `🎵 ${n} ән дайын`,
     needMusic: 'Алдымен музыка қосыңыз: ➕ Музыка қосу', saveFail: 'Ән сақталмады (жад толы болуы мүмкін): ',
     infoDesc: 'Тренерге арналған музыкалық интервал таймері.', author: 'Авторы:', authorName: 'Роман Давлетбаев',
-    version: 'Нұсқа 1.2', close: 'Жабу',
+    version: 'Нұсқа 1.3', close: 'Жабу',
     aInfo: 'Ақпарат', aReset: 'Тоқтату', aNext: 'Келесі ән', aDel: 'Өшіру',
     sec: 'сек', min: 'мин', inf: '∞ шексіз', langBtn: 'EN',
   },
@@ -181,7 +181,7 @@ const L = {
     noMusic: '🎵 No music selected', nTracks: n => `🎵 ${n} tracks ready`,
     needMusic: 'Add music first: ➕ Add music', saveFail: 'Song was not saved (storage may be full): ',
     infoDesc: 'Music interval timer for coaches.', author: 'Author:', authorName: 'Roman Davletbayev',
-    version: 'Version 1.2', close: 'Close',
+    version: 'Version 1.3', close: 'Close',
     aInfo: 'Info', aReset: 'Stop', aNext: 'Next track', aDel: 'Remove',
     sec: 'sec', min: 'min', inf: '∞ unlimited', langBtn: 'ҚАЗ',
   },
@@ -258,6 +258,7 @@ const voices = {};
 async function initAudio() {
   if (ctx) { if (ctx.state !== 'running') await ctx.resume(); return; }
   ctx = new (window.AudioContext || window.webkitAudioContext)();
+  ctx.onstatechange = () => { if (ctx.state !== 'running') keepMusicAlive(); };  // жүйе дыбысты тоқтатса — қайта қосамыз
   musicGain = ctx.createGain();
   ctx.createMediaElementSource(music).connect(musicGain).connect(ctx.destination);
   for (const [k, b64] of Object.entries(window.VOICES || {})) {
@@ -534,9 +535,28 @@ document.addEventListener('visibilitychange', () => {
 // ---------- Құлыпталған экрандағы басқару ----------
 if ('mediaSession' in navigator) {
   navigator.mediaSession.setActionHandler('play', () => { if (state.paused || state.phase === 'idle') start(); });
-  navigator.mediaSession.setActionHandler('pause', () => { if (!state.paused && state.phase !== 'idle') start(); });
+  // Android өзі "pause" жібереді (хабарлама, Bluetooth үзілуі т.б.) — таймерді тоқтатпаймыз, музыканы қайта қосамыз.
+  // Паузаны тек бағдарламаның өз батырмасымен қоюға болады.
+  navigator.mediaSession.setActionHandler('pause', () => keepMusicAlive());
   navigator.mediaSession.setActionHandler('nexttrack', () => playTrack(nextIndex()));
 }
+
+// Жаттығу жүріп жатқанда музыка сырттан тоқтатылса — 1 секундтан кейін қайта қосылады (қосылғанша 2 сек сайын қайталайды).
+let resumeTimer = null;
+function keepMusicAlive() {
+  if (resumeTimer) return;
+  const tryPlay = () => {
+    resumeTimer = null;
+    const running = (state.phase === 'work' || state.phase === 'rest') && !state.paused;
+    if (!running || !tracks.length) return;
+    if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {});
+    if (!music.paused) return;
+    music.play().catch(() => {});
+    resumeTimer = setTimeout(tryPlay, 2000);
+  };
+  resumeTimer = setTimeout(tryPlay, 1000);
+}
+music.addEventListener('pause', keepMusicAlive);
 
 // ---------- Батырмалар ----------
 $('startBtn').onclick = start;
