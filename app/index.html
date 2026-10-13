@@ -86,6 +86,8 @@
   #finalNum.pop { animation: pop .9s ease-out; }
   @keyframes pop { from { transform: scale(1.25); opacity: .4; } to { transform: scale(1); opacity: 1; } }
 
+  .head-btns { display: flex; gap: 8px; }
+  .lang-btn { width: auto; min-width: 52px; border-radius: 20px; padding: 0 12px; font: 700 14px system-ui, sans-serif; }
   dialog { background: var(--card); color: var(--text); border: 1px solid var(--line); border-radius: 16px; max-width: 360px; width: calc(100% - 32px); }
   dialog::backdrop { background: rgba(0,0,0,.6); }
   dialog a { color: var(--work); font-size: 20px; font-weight: 700; text-decoration: none; }
@@ -95,7 +97,10 @@
 <body>
 <header>
   <h1>🏋️ Coach Timer</h1>
-  <button class="icon-btn" id="infoBtn" aria-label="Ақпарат">i</button>
+  <div class="head-btns">
+    <button class="icon-btn lang-btn" id="langBtn">EN</button>
+    <button class="icon-btn" id="infoBtn" data-t-aria="aInfo">i</button>
+  </div>
 </header>
 
 <section class="card" id="timerCard">
@@ -107,60 +112,100 @@
 </section>
 
 <div class="controls">
-  <button class="big" id="resetBtn" aria-label="Тоқтату">⏹</button>
+  <button class="big" id="resetBtn" data-t-aria="aReset">⏹</button>
   <button class="big" id="startBtn">▶ СТАРТ</button>
-  <button class="big" id="nextBtn" aria-label="Келесі ән">⏭</button>
+  <button class="big" id="nextBtn" data-t-aria="aNext">⏭</button>
 </div>
 
 <section class="card">
-  <h2>Баптаулар</h2>
+  <h2 data-t="settings"></h2>
   <div class="presets" id="presets"></div>
-  <div class="row"><label for="work">🔥 Жаттығу (дыбысы қатты)</label><select id="work"></select></div>
-  <div class="row"><label for="rest">✋ Демалыс (дыбысы ақырын)</label><select id="rest"></select></div>
-  <div class="row"><label for="rounds">🔁 Раунд саны</label><select id="rounds"></select></div>
-  <div class="row"><label for="signal">🔔 Сигнал</label><select id="signal"><option value="voice">🗣 Дауыс</option><option value="gong">🔔 Гонг</option></select></div>
-  <div class="row"><label for="restVol">🔉 Демалыстағы дыбыс <b id="restVolTxt"></b></label><input type="range" id="restVol" min="5" max="60" step="5"></div>
-  <div class="row"><label for="wake">💡 Экран өшпесін</label><input type="checkbox" id="wake"></div>
+  <div class="row"><label for="work" data-t="workL"></label><select id="work"></select></div>
+  <div class="row"><label for="rest" data-t="restL"></label><select id="rest"></select></div>
+  <div class="row"><label for="rounds" data-t="roundsL"></label><select id="rounds"></select></div>
+  <div class="row"><label for="signal" data-t="signalL"></label><select id="signal"><option value="voice" data-t="sigVoice"></option><option value="gong" data-t="sigGong"></option></select></div>
+  <div class="row"><label for="restVol"><span data-t="restVolL"></span> <b id="restVolTxt"></b></label><input type="range" id="restVol" min="5" max="60" step="5"></div>
+  <div class="row"><label for="wake" data-t="wakeL"></label><input type="checkbox" id="wake"></div>
 </section>
 
 <section class="card">
-  <h2>Плейлист</h2>
-  <label class="add-btn" for="files">➕ Музыка қосу</label>
+  <h2 data-t="playlist"></h2>
+  <label class="add-btn" for="files" data-t="addMusic"></label>
   <input type="file" id="files" accept="audio/*" multiple>
-  <div class="row"><label for="shuffle">🔀 Аралас ойнату</label><input type="checkbox" id="shuffle"></div>
+  <div class="row"><label for="shuffle" data-t="shuffleL"></label><input type="checkbox" id="shuffle"></div>
   <ol id="list"></ol>
-  <p class="hint">Әндер телефонда сақталады. Экран өшсе де музыка мен таймер жұмысын жалғастырады. Тек бетті жаппаңыз.</p>
+  <p class="hint" data-t="hint"></p>
 </section>
 
 <div id="final"><div id="finalNum">5</div></div>
 
 <dialog id="info">
   <h2 style="color:var(--text);font-size:20px">Coach Timer</h2>
-  <p>Тренерге арналған музыкалық интервал таймері.</p>
-  <p>Авторы: <b>Роман Давлетбаев</b><br><a href="tel:+77012111996">+7 701 211 19 96</a></p>
-  <p class="hint">Нұсқа 1.0</p>
-  <button class="big" id="infoClose">Жабу</button>
+  <p data-t="infoDesc"></p>
+  <p><span data-t="author"></span> <b data-t="authorName"></b><br><a href="tel:+77012111996">+7 701 211 19 96</a></p>
+  <p class="hint" data-t="version"></p>
+  <button class="big" id="infoClose" data-t="close"></button>
 </dialog>
 
 <script src="voices.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
+// ---------- Тіл / Language ----------
+const L = {
+  kk: {
+    idle: 'ДАЙЫН', work: 'ЖАТТЫҒУ 🔥', rest: 'ДЕМАЛЫС ✋', done: 'БІТТІ 💪', paused: 'ПАУЗА',
+    start: '▶ СТАРТ', pause: '⏸ ПАУЗА', resume: '▶ ЖАЛҒАСТЫР',
+    round: 'Раунд', nRounds: n => `${n} раунд`, infRounds: 'Раунд саны шексіз',
+    settings: 'Баптаулар', workL: '🔥 Жаттығу (дыбысы қатты)', restL: '✋ Демалыс (дыбысы ақырын)',
+    roundsL: '🔁 Раунд саны', signalL: '🔔 Сигнал', sigVoice: '🗣 Дауыс', sigGong: '🔔 Гонг',
+    restVolL: '🔉 Демалыстағы дыбыс', wakeL: '💡 Экран өшпесін',
+    playlist: 'Плейлист', addMusic: '➕ Музыка қосу', shuffleL: '🔀 Аралас ойнату',
+    hint: 'Әндер телефонда сақталады. Экран өшсе де музыка мен таймер жұмысын жалғастырады. Тек бетті жаппаңыз.',
+    noMusic: '🎵 Музыка таңдалмаған', nTracks: n => `🎵 ${n} ән дайын`,
+    needMusic: 'Алдымен музыка қосыңыз: ➕ Музыка қосу', saveFail: 'Ән сақталмады (жад толы болуы мүмкін): ',
+    infoDesc: 'Тренерге арналған музыкалық интервал таймері.', author: 'Авторы:', authorName: 'Роман Давлетбаев',
+    version: 'Нұсқа 1.1', close: 'Жабу',
+    aInfo: 'Ақпарат', aReset: 'Тоқтату', aNext: 'Келесі ән', aDel: 'Өшіру',
+    sec: 'сек', min: 'мин', inf: '∞ шексіз', langBtn: 'EN',
+  },
+  en: {
+    idle: 'READY', work: 'WORK 🔥', rest: 'REST ✋', done: 'DONE 💪', paused: 'PAUSED',
+    start: '▶ START', pause: '⏸ PAUSE', resume: '▶ RESUME',
+    round: 'Round', nRounds: n => `${n} rounds`, infRounds: 'Unlimited rounds',
+    settings: 'Settings', workL: '🔥 Work (music loud)', restL: '✋ Rest (music quiet)',
+    roundsL: '🔁 Rounds', signalL: '🔔 Signal', sigVoice: '🗣 Voice', sigGong: '🔔 Gong',
+    restVolL: '🔉 Rest volume', wakeL: '💡 Keep screen on',
+    playlist: 'Playlist', addMusic: '➕ Add music', shuffleL: '🔀 Shuffle',
+    hint: "Songs are saved on this phone. Music and timer keep running with the screen off — just don't close the page.",
+    noMusic: '🎵 No music selected', nTracks: n => `🎵 ${n} tracks ready`,
+    needMusic: 'Add music first: ➕ Add music', saveFail: 'Song was not saved (storage may be full): ',
+    infoDesc: 'Music interval timer for coaches.', author: 'Author:', authorName: 'Roman Davletbayev',
+    version: 'Version 1.1', close: 'Close',
+    aInfo: 'Info', aReset: 'Stop', aNext: 'Next track', aDel: 'Remove',
+    sec: 'sec', min: 'min', inf: '∞ unlimited', langBtn: 'ҚАЗ',
+  },
+};
+const t = k => (L[S.lang] || L.kk)[k];
+
 // ---------- Баптаулар ----------
-const S = { work: 2, rest: 1, rounds: 0, signal: 'voice', restVol: 30, wake: true, shuffle: false };
+const S = { lang: 'kk', work: 2, rest: 1, rounds: 0, signal: 'voice', restVol: 30, wake: true, shuffle: false };
 try { Object.assign(S, JSON.parse(localStorage.getItem('coachTimer') || '{}')); } catch (e) {}
 function save() { try { localStorage.setItem('coachTimer', JSON.stringify(S)); } catch (e) {} }
 
 const minuteOpts = [10 / 60, 15 / 60, 20 / 60, 0.5, 40 / 60, 45 / 60, 1, 1.5, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-const minLabel = m => m < 1 ? `${Math.round(m * 60)} сек` : (m % 1 ? `${Math.floor(m)} мин 30 сек` : `${m} мин`);
+const minLabel = m => m < 1 ? `${Math.round(m * 60)} ${t('sec')}` : (m % 1 ? `${Math.floor(m)} ${t('min')} 30 ${t('sec')}` : `${m} ${t('min')}`);
 function fill(sel, opts, label) {
   sel.innerHTML = opts.map(v => `<option value="${v}">${label(v)}</option>`).join('');
 }
-fill($('work'), minuteOpts, minLabel);
-fill($('rest'), minuteOpts, minLabel);
-fill($('rounds'), [0, ...Array.from({ length: 30 }, (_, i) => i + 1)], v => v ? String(v) : '∞ шексіз');
+function fillSelects() {
+  fill($('work'), minuteOpts, minLabel);
+  fill($('rest'), minuteOpts, minLabel);
+  fill($('rounds'), [0, ...Array.from({ length: 30 }, (_, i) => i + 1)], v => v ? String(v) : t('inf'));
+  for (const k of ['work', 'rest', 'rounds']) $(k).value = S[k];
+}
+fillSelects();
 for (const k of ['work', 'rest', 'rounds']) {
-  $(k).value = S[k];
   $(k).onchange = () => { S[k] = Number($(k).value); save(); render(); markPreset(); };
 }
 $('signal').value = S.signal;
@@ -168,12 +213,15 @@ $('signal').onchange = () => { S.signal = $('signal').value; save(); markPreset(
 
 // Дайын режимдер — бір басумен баптау
 const PRESETS = [
-  { icon: '⚡', name: 'Табата', work: 20 / 60, rest: 10 / 60, rounds: 8, signal: 'voice' },
-  { icon: '🔥', name: 'Интервал', work: 40 / 60, rest: 20 / 60, rounds: 10, signal: 'voice' },
-  { icon: '🥊', name: 'Бокс', work: 3, rest: 1, rounds: 6, signal: 'gong' },
+  { icon: '⚡', name: { kk: 'Табата', en: 'Tabata' }, work: 20 / 60, rest: 10 / 60, rounds: 8, signal: 'voice' },
+  { icon: '🔥', name: { kk: 'Интервал', en: 'Interval' }, work: 40 / 60, rest: 20 / 60, rounds: 10, signal: 'voice' },
+  { icon: '🥊', name: { kk: 'Бокс', en: 'Boxing' }, work: 3, rest: 1, rounds: 6, signal: 'gong' },
 ];
-$('presets').innerHTML = PRESETS.map((p, i) =>
-  `<button class="big preset" data-p="${i}">${p.icon} ${p.name}<small>${minLabel(p.work)} / ${minLabel(p.rest)} × ${p.rounds}</small></button>`).join('');
+function renderPresets() {
+  $('presets').innerHTML = PRESETS.map((p, i) =>
+    `<button class="big preset" data-p="${i}">${p.icon} ${p.name[S.lang] || p.name.kk}<small>${minLabel(p.work)} / ${minLabel(p.rest)} × ${p.rounds}</small></button>`).join('');
+  markPreset();
+}
 $('presets').onclick = e => {
   const b = e.target.closest('[data-p]');
   if (!b) return;
@@ -188,7 +236,7 @@ function markPreset() {
     b.classList.toggle('active', p.work === S.work && p.rest === S.rest && p.rounds === S.rounds && p.signal === S.signal);
   });
 }
-markPreset();
+renderPresets();
 $('restVol').value = S.restVol;
 $('restVolTxt').textContent = S.restVol + '%';
 $('restVol').oninput = () => {
@@ -314,15 +362,15 @@ $('files').onchange = async e => {
   for (const f of files) {
     const t = { name: f.name.replace(/\.[^.]+$/, ''), url: URL.createObjectURL(f) };
     try { t.id = await db('readwrite', s => s.add({ name: t.name, blob: f })); }
-    catch (err) { console.warn('db save', err); alert('Ән сақталмады (жад толы болуы мүмкін): ' + t.name); }
+    catch (err) { console.warn('db save', err); alert(L[S.lang].saveFail + t.name); }
     tracks.push(t);
   }
   renderList();
 };
 function renderList() {
   $('list').innerHTML = tracks.map((t, i) =>
-    `<li class="${i === cur ? 'current' : ''}"><span>${t.name.replace(/</g, '&lt;')}</span><button data-i="${i}" aria-label="Өшіру">✕</button></li>`).join('');
-  $('nowPlaying').textContent = cur >= 0 && tracks[cur] ? '🎵 ' + tracks[cur].name : (tracks.length ? `🎵 ${tracks.length} ән дайын` : '🎵 Музыка таңдалмаған');
+    `<li class="${i === cur ? 'current' : ''}"><span>${t.name.replace(/</g, '&lt;')}</span><button data-i="${i}" aria-label="${L[S.lang].aDel}">✕</button></li>`).join('');
+  $('nowPlaying').textContent = cur >= 0 && tracks[cur] ? '🎵 ' + tracks[cur].name : (tracks.length ? L[S.lang].nTracks(tracks.length) : L[S.lang].noMusic);
 }
 $('list').onclick = e => {
   const i = e.target.dataset.i;
@@ -367,7 +415,7 @@ function beginPhase(p) {
 }
 
 async function start() {
-  if (!tracks.length) { alert('Алдымен музыка қосыңыз: ➕ Музыка қосу'); return; }
+  if (!tracks.length) { alert(t('needMusic')); return; }
   await initAudio();
   if (state.phase === 'idle' || state.phase === 'done') {
     state.round = 1;
@@ -446,12 +494,12 @@ function render() {
   const p = state.phase;
   const running = p === 'work' || p === 'rest';
   const rem = running ? (state.paused ? state.left : state.end - Date.now()) : (S.work * 60000);
-  $('phase').textContent = state.paused ? 'ПАУЗА' : { idle: 'ДАЙЫН', work: 'ЖАТТЫҒУ 🔥', rest: 'ДЕМАЛЫС ✋', done: 'БІТТІ 💪' }[p];
+  $('phase').textContent = state.paused ? t('paused') : t(p);
   $('time').textContent = p === 'done' ? '00:00' : fmt(rem);
-  $('round').textContent = p === 'idle' ? (S.rounds ? `${S.rounds} раунд` : 'Раунд саны шексіз')
-    : `Раунд ${state.round}${S.rounds ? ' / ' + S.rounds : ''}`;
+  $('round').textContent = p === 'idle' ? (S.rounds ? t('nRounds')(S.rounds) : t('infRounds'))
+    : `${t('round')} ${state.round}${S.rounds ? ' / ' + S.rounds : ''}`;
   $('progress').style.width = running ? (100 * (1 - rem / state.total)).toFixed(1) + '%' : (p === 'done' ? '100%' : '0');
-  $('startBtn').textContent = running && !state.paused ? '⏸ ПАУЗА' : (state.paused ? '▶ ЖАЛҒАСТЫР' : '▶ СТАРТ');
+  $('startBtn').textContent = running && !state.paused ? t('pause') : (state.paused ? t('resume') : t('start'));
 
   // Соңғы 5 секунд — үлкен сан
   const sec = Math.ceil(rem / 1000);
@@ -497,8 +545,20 @@ $('nextBtn').onclick = () => { if (tracks.length) { if (state.phase === 'idle') 
 $('infoBtn').onclick = () => $('info').showModal();
 $('infoClose').onclick = () => $('info').close();
 
+function applyLang() {
+  document.documentElement.lang = S.lang;
+  document.querySelectorAll('[data-t]').forEach(el => { el.textContent = t(el.dataset.t); });
+  document.querySelectorAll('[data-t-aria]').forEach(el => el.setAttribute('aria-label', t(el.dataset.tAria)));
+  $('langBtn').textContent = t('langBtn');
+  fillSelects();
+  renderPresets();
+  renderList();
+  render();
+}
+$('langBtn').onclick = () => { S.lang = S.lang === 'en' ? 'kk' : 'en'; save(); applyLang(); };
+
+applyLang();
 loadTracks();
-render();
 </script>
 </body>
 </html>
