@@ -541,7 +541,8 @@ if ('mediaSession' in navigator) {
   navigator.mediaSession.setActionHandler('nexttrack', () => playTrack(nextIndex()));
 }
 
-// Жаттығу жүріп жатқанда музыка сырттан тоқтатылса — 1 секундтан кейін қайта қосылады (қосылғанша 2 сек сайын қайталайды).
+// Жаттығу жүріп жатқанда музыка сырттан тоқтатылса (мысалы Strava хабарламасы) — 5 секундтан кейін қайта қосылады,
+// басқа қосымшаның сөзін бөлмеу үшін. Қосылғанша 2 сек сайын қайталайды.
 let resumeTimer = null;
 function keepMusicAlive() {
   if (resumeTimer) return;
@@ -554,7 +555,7 @@ function keepMusicAlive() {
     music.play().catch(() => {});
     resumeTimer = setTimeout(tryPlay, 2000);
   };
-  resumeTimer = setTimeout(tryPlay, 1000);
+  resumeTimer = setTimeout(tryPlay, 5000);
 }
 music.addEventListener('pause', keepMusicAlive);
 
